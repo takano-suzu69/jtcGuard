@@ -2,14 +2,9 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Security Hub
 
 Resources:
-  ServiceLinkedRoleForSecurityHub:
-    Type: AWS::IAM::ServiceLinkedRole
-    Properties:
-      AWSServiceName: securityhub.amazonaws.com
-      Description: A service-linked role required for AWS Security Hub to access your resources.
-
   SecurityHub:
-    Type: AWS::SecurityHub::Hub
+    Type: 'AWS::SecurityHub::Hub'
+    Properties:
       AutoEnableControls: false
       EnableDefaultStandards: false
       ControlFindingGenerator: STANDARD_CONTROL
