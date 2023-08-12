@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Security Hub
+
+Resources:
+  ServiceLinkedRoleForSecurityHub:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: securityhub.amazonaws.com
+      Description: A service-linked role required for AWS Security Hub to access your resources.
+
+  SecurityHub:
+    Type: AWS::SecurityHub::Hub
+      AutoEnableControls: false
+      EnableDefaultStandards: false
+      ControlFindingGenerator: STANDARD_CONTROL
+
+  Standard:
+    Type: 'AWS::SecurityHub::Standard'
+    DependsOn: SecurityHub
+    Properties:
+      StandardsArn: !Sub 'arn:${AWS::Partition}:securityhub:${AWS::Region}::standards/aws-foundational-security-best-practices/v/1.0.0'

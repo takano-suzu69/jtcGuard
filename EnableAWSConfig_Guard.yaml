@@ -1,0 +1,121 @@
+# FirstSettingRegion is Default,
+# SecondSettingRegion "IncludeGlobalResourceTypes" is False
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Enable AWS Config
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Recorder Configuration
+        Parameters:
+          - AllSupported
+          - IncludeGlobalResourceTypes
+          - ResourceTypes
+
+Parameters:
+  AllSupported:
+    Type: String
+    Default: True
+    Description: All Config Records Or Not
+    AllowedValues:
+      - True
+      - False
+
+  IncludeGlobalResourceTypes:
+    Type: String
+    Default: True
+    Description: Include Grobal Resorce
+    AllowedValues:
+      - True
+      - False
+
+  ResourceTypes:
+    Type: List<String>
+    Description: A list of valid AWS resource types to include in this recording group, such as AWS::EC2::Instance or AWS::CloudTrail::Trail.
+    Default: AWS::EC2::Instance, AWS::CloudTrail::Trail
+
+Conditions:
+  IsAllSupported: !Equals
+    - !Ref AllSupported
+    - True
+
+Resources:
+  ConfigBucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+        - Id: "AWSConfigS3-life_cycle"
+          Status: Enabled
+          ExpirationInDays: 40
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+
+  ConfigBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ConfigBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AWSConfigBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource:
+              - !Sub "arn:aws:s3:::${ConfigBucket}"
+          - Sid: AWSConfigBucketDelivery
+            Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action: s3:PutObject
+            Resource:
+              - !Sub "arn:aws:s3:::${ConfigBucket}/AWSLogs/${AWS::AccountId}/*"
+
+  ConfigRecorderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWS_ConfigRole
+
+  ConfigRecorder:
+    Type: AWS::Config::ConfigurationRecorder
+    DependsOn:
+       ConfigBucketPolicy
+    Properties:
+      Name: "default"
+      RoleARN: !GetAtt ConfigRecorderRole.Arn
+      RecordingGroup:
+        AllSupported: !Ref AllSupported
+        IncludeGlobalResourceTypes: !Ref IncludeGlobalResourceTypes
+        ResourceTypes: !If
+          - IsAllSupported
+          - !Ref AWS::NoValue
+          - !Ref ResourceTypes
+
+  ConfigDeliveryChannel:
+    Type: AWS::Config::DeliveryChannel
+    DependsOn:
+       ConfigBucketPolicy
+    Properties:
+      Name: "default"
+      ConfigSnapshotDeliveryProperties:
+        DeliveryFrequency: TwentyFour_Hours
+      S3BucketName: !Ref ConfigBucket
