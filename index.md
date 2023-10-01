@@ -17,6 +17,7 @@ AWS公開テンプレートのS3バケットに、ライフサイクルルール
 
 EnableAWSConfig_Guard.yaml です。Config保管バケットにライフサイクルルール、コメントで1つめのリージョンと次のリージョンに対してのParameter設定の記載を追加しています。
 ※2023/8/13 にナレッジを確認していたところ、「ExclusionByResourceTypes」が確認できました。Records の見直しをしていいかもしれません（後に更新しておきます）
+※※ 10.1 UPしました。
 
 - 3.8 GuradDuty
 
@@ -33,6 +34,7 @@ EnableSecurityHub.yaml です。非機能要件はケースによって違うた
 ## 更新サマリ
 
 2023/8/13 1.0
+2023/10/1 1.1 EnableAWSConfig_Guard.yaml の RecorderRecordingStrategy対応版UP
 
 # 連絡先
 
