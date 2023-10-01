@@ -18,28 +18,55 @@ Parameters:
   AllSupported:
     Type: String
     Default: True
-    Description: All Config Records Or Not
+    Description: All Config Records Or Not Or NULL（RecorderRecordingStrategy = EXCLUSION_BY_RESOURCE_TYPES)
     AllowedValues:
+      - ''
       - True
       - False
 
   IncludeGlobalResourceTypes:
     Type: String
     Default: True
-    Description: Include Grobal Resorce
+    Description: Include Grobal Resorce. if AllSupported is "", This is AWS::NoValue
     AllowedValues:
       - True
       - False
 
-  ResourceTypes:
+  RecordResourceTypes:
     Type: List<String>
     Description: A list of valid AWS resource types to include in this recording group, such as AWS::EC2::Instance or AWS::CloudTrail::Trail.
     Default: AWS::EC2::Instance, AWS::CloudTrail::Trail
 
+  RecorderRecordingStrategy:
+    Type: String
+    Description: The recording strategy for the configuration recorder.
+    Default: ''
+    AllowedValues:
+      - ''
+      - ALL_SUPPORTED_RESOURCE_TYPES
+      - INCLUSION_BY_RESOURCE_TYPES
+      - EXCLUSION_BY_RESOURCE_TYPES
+
+  EXCLUSIONResourceTypes:
+    Type: List<String>
+    Description: A list of valid AWS EXCLUSION resource types to include in this recording group, such as AWS::EC2::VPC
+    Default: ''
+
 Conditions:
-  IsAllSupported: !Equals
+  IsAllSupported: !Or 
+    - !Equals [!Ref AllSupported,True]
+    - !Equals [!Ref AllSupported,'']
+
+  IsEmptyAllSupported: !Equals
     - !Ref AllSupported
-    - True
+    - ''
+
+  IsRecorderRecordingStrategy: !Not
+    - !Equals [!Ref RecorderRecordingStrategy, EXCLUSION_BY_RESOURCE_TYPES]
+
+  IsEmptyRecorderRecordingStrategy: !Equals
+    - !Ref RecorderRecordingStrategy
+    - ''
 
 Resources:
   ConfigBucket:
@@ -103,12 +130,28 @@ Resources:
       Name: "default"
       RoleARN: !GetAtt ConfigRecorderRole.Arn
       RecordingGroup:
-        AllSupported: !Ref AllSupported
-        IncludeGlobalResourceTypes: !Ref IncludeGlobalResourceTypes
+        AllSupported: !If
+          - IsEmptyAllSupported
+          - !Ref AWS::NoValue
+          - !Ref AllSupported
+        IncludeGlobalResourceTypes: !If
+          - IsEmptyAllSupported
+          - !Ref AWS::NoValue
+          - !Ref IncludeGlobalResourceTypes
         ResourceTypes: !If
           - IsAllSupported
           - !Ref AWS::NoValue
-          - !Ref ResourceTypes
+          - !Ref RecordResourceTypes
+        ExclusionByResourceTypes: !If
+          - IsRecorderRecordingStrategy
+          - !Ref AWS::NoValue
+          - ResourceTypes:
+              !Ref EXCLUSIONResourceTypes
+        RecordingStrategy: !If
+          - IsEmptyRecorderRecordingStrategy
+          - !Ref AWS::NoValue
+          - UseOnly: 
+              !Ref RecorderRecordingStrategy
 
   ConfigDeliveryChannel:
     Type: AWS::Config::DeliveryChannel
